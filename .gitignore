@@ -1,0 +1,38 @@
+# Permit Scraper - Ignore files
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Logs
+logs/
+*.log
+
+# Output data (optional - you might want to track these)
+# output/
+# state/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment files
+.env
+config.env
+
+# Backup files
+*.bak
+*.backup
