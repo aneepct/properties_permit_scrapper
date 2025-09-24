@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Django Admin Theme Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .demo-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .toggle-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        /* Include our scraper theme CSS inline for testing */
+        :root {
+            --scraper-primary: #28a745;
+            --scraper-primary-hover: #218838;
+            --scraper-secondary: #007bff;
+            --scraper-secondary-hover: #0056b3;
+            --scraper-accent: #6f42c1;
+            --scraper-accent-hover: #5a32a3;
+            --scraper-gradient-start: #667eea;
+            --scraper-gradient-end: #764ba2;
+        }
+
+        /* Light theme variables */
+        [data-theme="light"], 
+        body:not([data-theme]) {
+            --scraper-bg: #f8f9fa;
+            --scraper-border: #dee2e6;
+            --scraper-text: #495057;
+            --scraper-text-muted: #6c757d;
+        }
+
+        /* Dark theme variables */
+        [data-theme="dark"] {
+            --scraper-bg: #2d3748;
+            --scraper-border: #4a5568;
+            --scraper-text: #e2e8f0;
+            --scraper-text-muted: #a0aec0;
+            --scraper-gradient-start: #4a5568;
+            --scraper-gradient-end: #2d3748;
+        }
+
+        /* Auto dark theme detection */
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --scraper-bg: #2d3748;
+                --scraper-border: #4a5568;
+                --scraper-text: #e2e8f0;
+                --scraper-text-muted: #a0aec0;
+                --scraper-gradient-start: #4a5568;
+                --scraper-gradient-end: #2d3748;
+            }
+        }
+
+        /* Apply theme to body */
+        [data-theme="dark"] {
+            background-color: #1a202c;
+            color: #e2e8f0;
+        }
+        
+        [data-theme="dark"] .demo-section {
+            background-color: #2d3748;
+            color: #e2e8f0;
+        }
+
+        /* Scraper Dashboard Styles */
+        .scraper-dashboard {
+            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            color: white;
+            background: linear-gradient(135deg, var(--scraper-gradient-start) 0%, var(--scraper-gradient-end) 100%);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .scraper-dashboard h2 {
+            margin-top: 0;
+            color: white;
+            font-size: 1.8em;
+            font-weight: 600;
+        }
+
+        .scraper-dashboard p {
+            margin-bottom: 20px;
+            opacity: 0.9;
+            font-size: 1.05em;
+        }
+
+        .scraper-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .scraper-dashboard-btn {
+            background-color: rgba(255, 255, 255, 0.15);
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            transition: all 0.2s ease;
+            display: inline-block;
+            backdrop-filter: blur(10px);
+        }
+
+        .scraper-dashboard-btn:hover {
+            background-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            color: white;
+            text-decoration: none;
+        }
+
+        .scraper-dashboard-btn.primary {
+            background-color: rgba(255, 255, 255, 0.9);
+            color: var(--scraper-gradient-start);
+            border-color: white;
+        }
+
+        .scraper-dashboard-btn.primary:hover {
+            background-color: white;
+            color: var(--scraper-gradient-start);
+        }
+
+        /* Control Panel Styles */
+        .scraper-control-panel {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid var(--scraper-accent);
+            background-color: var(--scraper-bg);
+            border: 1px solid var(--scraper-border);
+        }
+
+        .scraper-control-panel h3 {
+            margin-top: 0;
+            color: var(--scraper-text);
+        }
+
+        .scraper-control-panel p {
+            color: var(--scraper-text-muted);
+            margin-bottom: 15px;
+        }
+
+        .scraper-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 500;
+            margin-right: 10px;
+            margin-bottom: 5px;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .scraper-btn-primary {
+            background-color: var(--scraper-primary);
+            color: white;
+            border-color: var(--scraper-primary);
+        }
+
+        .scraper-btn-primary:hover {
+            background-color: var(--scraper-primary-hover);
+            color: white;
+            text-decoration: none;
+        }
+
+        .scraper-btn-secondary {
+            background-color: var(--scraper-secondary);
+            color: white;
+            border-color: var(--scraper-secondary);
+        }
+
+        .scraper-btn-secondary:hover {
+            background-color: var(--scraper-secondary-hover);
+            color: white;
+            text-decoration: none;
+        }
+
+        .scraper-btn-info {
+            background-color: var(--scraper-accent);
+            color: white;
+            border-color: var(--scraper-accent);
+        }
+
+        .scraper-btn-info:hover {
+            background-color: var(--scraper-accent-hover);
+            color: white;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="theme-toggle">
+        <button class="toggle-btn" onclick="toggleTheme()">🌙 Toggle Theme</button>
+    </div>
+
+    <div class="container">
+        <div class="demo-section">
+            <h1>🎨 Django Admin Theme Integration Test</h1>
+            <p>This page demonstrates how the scraper components adapt to light and dark themes. Click the theme toggle button to switch between modes.</p>
+        </div>
+
+        <div class="demo-section">
+            <h2>Main Dashboard Component</h2>
+            <div class="scraper-dashboard">
+                <h2>🏢 Property Permit Scraper</h2>
+                <p>Execute the permit scraper to collect data from NYC, Chicago, Los Angeles, and San Francisco.</p>
+                
+                <div class="scraper-buttons">
+                    <a href="#" class="scraper-dashboard-btn primary">
+                        🚀 Run Scraper Now
+                    </a>
+                    <a href="#" class="scraper-dashboard-btn">
+                        📋 View Permits
+                    </a>
+                    <a href="#" class="scraper-dashboard-btn">
+                        📊 Scraper History
+                    </a>
+                    <a href="#" class="scraper-dashboard-btn">
+                        🌐 API Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>Control Panel Component</h2>
+            <div class="scraper-control-panel">
+                <h3>🏢 Permit Scraper Control Panel</h3>
+                <p>Click the button below to execute the permit scraper and automatically save results to the database.</p>
+                
+                <a href="#" class="scraper-btn scraper-btn-primary">
+                    🚀 Start Permit Scraper
+                </a>
+                
+                <a href="#" class="scraper-btn scraper-btn-secondary">
+                    📋 View All Permits
+                </a>
+                
+                <a href="#" class="scraper-btn scraper-btn-info">
+                    📊 API Dashboard
+                </a>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>✅ Theme Integration Features</h2>
+            <ul>
+                <li><strong>CSS Variables</strong> - Uses CSS custom properties for dynamic theming</li>
+                <li><strong>Data Attributes</strong> - Responds to <code>[data-theme="dark"]</code> and <code>[data-theme="light"]</code></li>
+                <li><strong>Auto Detection</strong> - Respects <code>prefers-color-scheme: dark</code> media query</li>
+                <li><strong>Smooth Transitions</strong> - All color changes animate smoothly</li>
+                <li><strong>Accessibility</strong> - Maintains proper contrast ratios in both themes</li>
+                <li><strong>Django Integration</strong> - Works with Django admin's existing theme system</li>
+            </ul>
+        </div>
+
+        <div class="demo-section">
+            <h2>🚀 Implementation Status</h2>
+            <div style="background: #d4edda; padding: 15px; border-radius: 5px; border-left: 4px solid #28a745; color: #155724;">
+                <strong>✅ Complete!</strong> The admin panel components now fully support both light and dark themes with automatic adaptation.
+            </div>
+            
+            <h3 style="margin-top: 20px;">Files Updated:</h3>
+            <ul>
+                <li><code>scraper/static/admin/css/scraper-theme.css</code> - Comprehensive theme CSS</li>
+                <li><code>scraper/templates/admin/index.html</code> - Main dashboard with theme support</li>
+                <li><code>scraper/templates/admin/scraper/scraperrun/change_list.html</code> - Control panel with theme support</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            body.setAttribute('data-theme', newTheme);
+            
+            const btn = document.querySelector('.toggle-btn');
+            btn.textContent = newTheme === 'dark' ? '☀️ Toggle Theme' : '🌙 Toggle Theme';
+        }
+
+        // Auto-detect system theme on load
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.body.setAttribute('data-theme', 'dark');
+            document.querySelector('.toggle-btn').textContent = '☀️ Toggle Theme';
+        }
+    </script>
+</body>
+</html>

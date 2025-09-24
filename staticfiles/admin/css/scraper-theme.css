@@ -1,0 +1,348 @@
+/* Django Admin Scraper Theme Integration */
+
+/* CSS Variables that work with Django's theme system */
+:root {
+    --scraper-primary: #28a745;
+    --scraper-primary-hover: #218838;
+    --scraper-secondary: #007bff;
+    --scraper-secondary-hover: #0056b3;
+    --scraper-accent: #6f42c1;
+    --scraper-accent-hover: #5a32a3;
+    --scraper-gradient-start: #667eea;
+    --scraper-gradient-end: #764ba2;
+}
+
+/* Light theme variables */
+[data-theme="light"], 
+body:not([data-theme]) {
+    --scraper-bg: transparent;
+    --scraper-border: #dee2e6;
+    --scraper-text: #495057;
+    --scraper-text-muted: #6c757d;
+}
+
+/* Dark theme variables */
+[data-theme="dark"] {
+    --scraper-bg: transparent;
+    --scraper-border: #4a5568;
+    --scraper-text: #e2e8f0;
+    --scraper-text-muted: #a0aec0;
+    --scraper-gradient-start: #4a5568;
+    --scraper-gradient-end: #2d3748;
+}
+
+/* Auto dark theme detection */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --scraper-bg: transparent;
+        --scraper-border: #4a5568;
+        --scraper-text: #e2e8f0;
+        --scraper-text-muted: #a0aec0;
+        --scraper-gradient-start: #4a5568;
+        --scraper-gradient-end: #2d3748;
+    }
+}
+
+/* Additional visual distinction styles */
+/* Removed scraper section wrapper - keeping only inner control panel */
+
+/* Loading and message states */
+#scraper-loading {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+/* Enhanced message styling */
+.messages .success, .messages .error, .messages .warning {
+    white-space: pre-line;
+    font-family: monospace;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+.messages .success {
+    background: var(--success-bg, #d4edda);
+    border: 2px solid var(--success-border, #28a745);
+    color: var(--success-text, #155724);
+}
+
+.messages .error {
+    background: var(--error-bg, #f8d7da);
+    border: 2px solid var(--error-border, #dc3545);
+    color: var(--error-text, #721c24);
+}
+
+/* Dark mode message colors */
+[data-theme="dark"] .messages .success {
+    background: #1e4620;
+    border-color: #4caf50;
+    color: #90ee90;
+}
+
+[data-theme="dark"] .messages .error {
+    background: #4a1e1e;
+    border-color: #f44336;
+    color: #ffcdd2;
+}
+
+/* Wrapper styles removed */
+
+/* Hover effects for better interaction */
+.scraper-dashboard:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.scraper-control-panel:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="dark"] .scraper-control-panel:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Scraper Dashboard Styles */
+/* Enhanced dashboard section */
+.scraper-dashboard {
+    background: transparent;
+    border: 3px solid var(--primary-color);
+    border-radius: 12px;
+    padding: 25px;
+    margin: 25px 0;
+    position: relative;
+    box-shadow: 0 6px 20px rgba(var(--shadow-color), 0.15);
+    transition: all 0.3s ease;
+}
+
+.scraper-dashboard::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+    border-radius: 12px 12px 0 0;
+}
+
+.scraper-dashboard h2 {
+    margin-top: 0;
+    color: white;
+    font-size: 1.8em;
+    font-weight: 600;
+}
+
+.scraper-dashboard p {
+    margin-bottom: 20px;
+    opacity: 0.9;
+    font-size: 1.05em;
+}
+
+.scraper-buttons {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.scraper-dashboard-btn {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: white;
+    padding: 12px 24px;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 500;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    transition: all 0.2s ease;
+    display: inline-block;
+    backdrop-filter: blur(10px);
+}
+
+.scraper-dashboard-btn:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    color: white;
+    text-decoration: none;
+}
+
+.scraper-dashboard-btn:active {
+    transform: translateY(0);
+}
+
+.scraper-dashboard-btn.primary {
+    background-color: rgba(255, 255, 255, 0.9);
+    color: var(--scraper-gradient-start);
+    border-color: white;
+}
+
+.scraper-dashboard-btn.primary:hover {
+    background-color: white;
+    color: var(--scraper-gradient-start);
+}
+
+/* Control Panel Styles */
+.scraper-control-panel {
+    margin: 20px 0;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 6px solid var(--scraper-accent);
+    background-color: transparent;
+    border: 2px solid var(--scraper-border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.scraper-control-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--scraper-accent), var(--scraper-primary));
+    border-radius: 8px 8px 0 0;
+}
+
+/* Enhanced border visibility for dark theme */
+[data-theme="dark"] .scraper-control-panel {
+    border-color: var(--scraper-border, #4a5568);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Enhanced border visibility for light theme */
+[data-theme="light"] .scraper-control-panel,
+.scraper-control-panel {
+    border-color: var(--scraper-border, #dee2e6);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.scraper-control-panel h3 {
+    margin-top: 0;
+    color: var(--scraper-text);
+}
+
+.scraper-control-panel p {
+    color: var(--scraper-text-muted);
+    margin-bottom: 15px;
+}
+
+/* Button Styles */
+.scraper-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: 500;
+    margin-right: 10px;
+    margin-bottom: 5px;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.scraper-btn-primary {
+    background-color: var(--scraper-primary);
+    color: white;
+    border-color: var(--scraper-primary);
+}
+
+.scraper-btn-primary:hover {
+    background-color: var(--scraper-primary-hover);
+    color: white;
+    text-decoration: none;
+}
+
+.scraper-btn-secondary {
+    background-color: var(--scraper-secondary);
+    color: white;
+    border-color: var(--scraper-secondary);
+}
+
+.scraper-btn-secondary:hover {
+    background-color: var(--scraper-secondary-hover);
+    color: white;
+    text-decoration: none;
+}
+
+.scraper-btn-info {
+    background-color: var(--scraper-accent);
+    color: white;
+    border-color: var(--scraper-accent);
+}
+
+.scraper-btn-info:hover {
+    background-color: var(--scraper-accent-hover);
+    color: white;
+    text-decoration: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .scraper-buttons {
+        flex-direction: column;
+    }
+    
+    .scraper-dashboard-btn {
+        text-align: center;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .scraper-btn {
+        width: 100%;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+}
+
+/* Integration with Django's existing styles */
+.scraper-control-panel,
+.scraper-dashboard {
+    font-family: "Roboto","Lucida Grande","DejaVu Sans","Bitstream Vera Sans",Verdana,Arial,sans-serif;
+}
+
+/* Ensure compatibility with Django's CSS reset */
+.scraper-btn,
+.scraper-dashboard-btn {
+    box-sizing: border-box;
+}
+
+/* Focus styles for accessibility */
+.scraper-btn:focus,
+.scraper-dashboard-btn:focus {
+    outline: 2px solid var(--focus-color, #4285f4);
+    outline-offset: 2px;
+}
+
+/* Success message integration */
+.scraper-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+[data-theme="dark"] .scraper-success {
+    background-color: #1e4620;
+    border-color: #2d5a2f;
+    color: #a3d9a5;
+}
+
+/* Error message integration */
+.scraper-error {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+[data-theme="dark"] .scraper-error {
+    background-color: #4a1e1e;
+    border-color: #5a2525;
+    color: #f5b7b1;
+}

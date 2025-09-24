@@ -1,0 +1,40 @@
+{% extends "admin/index.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static 'admin/css/scraper-theme.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="scraper-dashboard">
+    <h2>🏢 Property Permit Scraper</h2>
+    <p>Execute the permit scraper to collect data from NYC, Chicago, Los Angeles, and San Francisco.</p>
+    
+    <div class="scraper-buttons">
+        <a href="/admin/scraper/scraperrun/start-scraper/" 
+           class="scraper-dashboard-btn primary"
+           onclick="return confirm('Start permit scraper? This will collect data from all cities and save to the database.');">
+            🚀 Run Scraper Now
+        </a>
+        
+        <a href="/admin/scraper/permit/" 
+           class="scraper-dashboard-btn">
+            📋 View Permits
+        </a>
+        
+        <a href="/admin/scraper/scraperrun/" 
+           class="scraper-dashboard-btn">
+            📊 Scraper History
+        </a>
+        
+        <a href="/api/scraper/dashboard/" target="_blank"
+           class="scraper-dashboard-btn">
+            🌐 API Dashboard
+        </a>
+    </div>
+</div>
+
+{{ block.super }}
+{% endblock %}

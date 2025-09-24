@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=False
+      - DATABASE_NAME=properties_permit_scrapper
+      - DATABASE_USER=root
+      - DATABASE_PASSWORD=Aneep@2709
+      - DATABASE_HOST=host.docker.internal
+      - DATABASE_PORT=3306
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+    volumes:
+      - ./logs:/app/logs
+      - ./output:/app/output
+      - ./state:/app/state
+      - ./staticfiles:/app/staticfiles
+      - ./media:/app/media
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn --bind 0.0.0.0:8000 --workers 3 --worker-class sync --timeout 120 --access-logfile - --error-logfile - permit_api.wsgi:application"
