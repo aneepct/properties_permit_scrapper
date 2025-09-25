@@ -1,9 +1,11 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import path
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.contrib import messages
 from django.shortcuts import redirect
+import csv
+from datetime import datetime
 from .models import Permit, ScraperRun
 
 
@@ -55,35 +57,65 @@ class PermitAdmin(admin.ModelAdmin):
     formatted_cost.short_description = 'Cost'
     formatted_cost.admin_order_field = 'estimated_cost'
     
-    def export_selected_permits(self, request, queryset):
-        """Export selected permits to CSV"""
-        import csv
-        from django.http import HttpResponse
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('export-csv/', self.admin_site.admin_view(self.export_permits_csv), name='export_permits_csv'),
+        ]
+        return custom_urls + urls
+    
+    def export_permits_csv(self, request):
+        """Export all permits to CSV"""
+        return self._export_permits_to_csv(request, Permit.objects.all(), "permits")
+    
+    def _export_permits_to_csv(self, request, queryset, filename_prefix):
+        """Helper method to export permits to CSV"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{filename_prefix}_{timestamp}.csv"
         
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="permits_export.csv"'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
         
         writer = csv.writer(response)
+        
+        # Write header row with comprehensive fields
         writer.writerow([
-            'Permit ID', 'City', 'Issue Date', 'Address', 'Description', 
-            'Estimated Cost', 'Contractor', 'Applicant', 'Owner'
+            'Permit ID', 'City', 'Issue Date', 'Full Address', 'Borough/Area', 'ZIP Code',
+            'Project Description', 'Estimated Cost', 'Contractor Name', 'Contractor License',
+            'Applicant Name', 'Owner Name', 'Architect Name', 'License Status',
+            'Business Address', 'Business Phone', 'Data Source', 'Scraped At'
         ])
         
+        # Write data rows
         for permit in queryset:
             writer.writerow([
                 permit.permit_id,
                 permit.city,
-                permit.issue_date,
+                permit.issue_date.strftime('%Y-%m-%d') if permit.issue_date else '',
                 permit.full_address,
+                permit.borough_area or '',
+                permit.zip_code or '',
                 permit.project_description,
-                permit.estimated_cost,
-                permit.contractor_name,
-                permit.applicant_name,
-                permit.owner_name
+                float(permit.estimated_cost) if permit.estimated_cost else 0,
+                permit.contractor_name or '',
+                permit.contractor_license or '',
+                permit.applicant_name or '',
+                permit.owner_name or '',
+                permit.architect_name or '',
+                permit.license_status or '',
+                permit.business_address or '',
+                permit.business_phone or '',
+                permit.data_source or '',
+                permit.scraped_at.strftime('%Y-%m-%d %H:%M:%S') if permit.scraped_at else ''
             ])
         
-        self.message_user(request, f'Exported {queryset.count()} permits to CSV.')
+        count = queryset.count()
+        self.message_user(request, f'Successfully exported {count} permits to {filename}')
         return response
+
+    def export_selected_permits(self, request, queryset):
+        """Export selected permits to CSV"""
+        return self._export_permits_to_csv(request, queryset, "selected_permits")
     
     export_selected_permits.short_description = "Export selected permits to CSV"
 

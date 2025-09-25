@@ -7,6 +7,8 @@ urlpatterns = [
     # Permit endpoints
     path('permits/', views.PermitListView.as_view(), name='permit-list'),
     path('permits/<int:pk>/', views.PermitDetailView.as_view(), name='permit-detail'),
+    path('permits/export-csv/', views.export_permits_csv, name='export-permits-csv'),
+    path('permits/export/', views.export_csv_page, name='export-csv-page'),
     
     # Scraper run endpoints
     path('runs/', views.ScraperRunListView.as_view(), name='scraper-run-list'),

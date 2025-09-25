@@ -137,6 +137,20 @@ def generate_permit(city_key, permit_num):
         "scraped_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
+def get_contact_by_type(row, contact_type):
+    """
+    Extract contact name by type from Chicago permit data.
+    Looks through contact_1_type through contact_5_type fields.
+    """
+    for i in range(1, 6):
+        type_field = f'contact_{i}_type'
+        name_field = f'contact_{i}_name'
+        if type_field in row and name_field in row:
+            type_value = str(row.get(type_field, '')).upper()
+            if contact_type.upper() in type_value:
+                return str(row.get(name_field, 'N/A'))
+    return "N/A"
+
 def scrape_real_city_data(city_key, min_cost=1000000, days_back=60, limit=500):
     """
     Scrape real permit data for any city.
@@ -242,6 +256,21 @@ def scrape_real_city_data(city_key, min_cost=1000000, days_back=60, limit=500):
                     address_parts.append(str(row[field]))
             full_address = ' '.join(address_parts).strip()
             
+            # Extract contractor name - special handling for Chicago contact structure
+            contractor_name = "N/A"
+            if city_key == "chicago":
+                # Look for contractor in contact_1_type through contact_5_type fields
+                for i in range(1, 6):
+                    contact_type = row.get(f'contact_{i}_type', '')
+                    if contact_type and 'CONTRACTOR' in str(contact_type).upper():
+                        contractor_name = str(row.get(f'contact_{i}_name', 'N/A'))
+                        # Prefer general contractor over specific trades
+                        if 'GENERAL CONTRACTOR' in str(contact_type).upper():
+                            break
+            else:
+                # Default contractor name extraction for other cities
+                contractor_name = str(row.get('contractors_business_name', row.get('contractor_name', 'N/A')))
+            
             permit = {
                 "city": config['name'],
                 "permit_id": str(row.get(config['id_field'], f"{city_key.upper()}-{idx}")),
@@ -251,11 +280,11 @@ def scrape_real_city_data(city_key, min_cost=1000000, days_back=60, limit=500):
                 "zip_code": str(row.get('zip_code', row.get('zipcode', 'N/A'))),
                 "project_description": str(row.get('work_description', row.get('description', row.get('job_description', 'Construction project'))))[:500],
                 "estimated_cost": str(int(row.get(config['cost_field'], 0))),
-                "contractor_name": str(row.get('contractors_business_name', row.get('contractor_name', 'N/A'))),
+                "contractor_name": contractor_name,
                 "contractor_license": str(row.get('license', row.get('contractor_license', 'N/A'))),
                 "applicant_name": f"{row.get('applicant_first_name', '')} {row.get('applicant_last_name', '')}".strip() or "N/A",
-                "owner_name": "N/A",  # Not commonly available
-                "architect_name": "N/A",
+                "owner_name": get_contact_by_type(row, "OWNER") if city_key == "chicago" else "N/A",
+                "architect_name": get_contact_by_type(row, "ARCHITECT") if city_key == "chicago" else "N/A",
                 "license_status": str(row.get('license_status', 'N/A')),
                 "business_address": str(row.get('contractor_address', 'N/A')),
                 "business_phone": "N/A",

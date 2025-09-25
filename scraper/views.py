@@ -2,11 +2,12 @@ import os
 import sys
 import json
 import uuid
+import csv
 from datetime import datetime, timezone
 from decimal import Decimal
 from django.conf import settings
 from django.db import models
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.utils import timezone as django_timezone
 from rest_framework import status, generics
 from rest_framework.decorators import api_view
@@ -292,3 +293,114 @@ def dashboard_stats(request):
             {'error': f'Failed to get dashboard stats: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['GET'])
+def export_permits_csv(request):
+    """Export permits to CSV with optional filtering"""
+    try:
+        # Get base queryset
+        queryset = Permit.objects.all()
+        
+        # Apply filters similar to PermitListView
+        city = request.query_params.get('city')
+        if city:
+            queryset = queryset.filter(city__icontains=city)
+        
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        if start_date:
+            queryset = queryset.filter(issue_date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(issue_date__lte=end_date)
+        
+        min_cost = request.query_params.get('min_cost')
+        if min_cost:
+            queryset = queryset.filter(estimated_cost__gte=min_cost)
+        
+        search = request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                project_description__icontains=search
+            ) | queryset.filter(
+                full_address__icontains=search
+            )
+        
+        # Order by issue date (most recent first)
+        queryset = queryset.order_by('-issue_date', '-created_at')
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"permits_export_{timestamp}.csv"
+        
+        # Create CSV response
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        writer = csv.writer(response)
+        
+        # Write header row
+        writer.writerow([
+            'Permit ID', 'City', 'Issue Date', 'Full Address', 'Borough/Area', 'ZIP Code',
+            'Project Description', 'Estimated Cost', 'Contractor Name', 'Contractor License',
+            'Applicant Name', 'Owner Name', 'Architect Name', 'License Status',
+            'Business Address', 'Business Phone', 'Data Source', 'Scraped At'
+        ])
+        
+        # Write data rows
+        count = 0
+        for permit in queryset.iterator():  # Use iterator for memory efficiency
+            writer.writerow([
+                permit.permit_id,
+                permit.city,
+                permit.issue_date.strftime('%Y-%m-%d') if permit.issue_date else '',
+                permit.full_address,
+                permit.borough_area or '',
+                permit.zip_code or '',
+                permit.project_description,
+                float(permit.estimated_cost) if permit.estimated_cost else 0,
+                permit.contractor_name or '',
+                permit.contractor_license or '',
+                permit.applicant_name or '',
+                permit.owner_name or '',
+                permit.architect_name or '',
+                permit.license_status or '',
+                permit.business_address or '',
+                permit.business_phone or '',
+                permit.data_source or '',
+                permit.scraped_at.strftime('%Y-%m-%d %H:%M:%S') if permit.scraped_at else ''
+            ])
+            count += 1
+        
+        # Add count information as metadata in response headers
+        response['X-Total-Records'] = str(count)
+        
+        return response
+        
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to export CSV: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+def export_csv_page(request):
+    """Render the CSV export page"""
+    from django.shortcuts import render
+    from django.db.models import Sum, Count
+    
+    # Get statistics for the page
+    total_permits = Permit.objects.count()
+    total_value = Permit.objects.aggregate(Sum('estimated_cost'))['estimated_cost__sum'] or 0
+    
+    # Get list of cities
+    cities = Permit.objects.values_list('city', flat=True).distinct().order_by('city')
+    
+    context = {
+        'total_permits': total_permits,
+        'total_value': total_value,
+        'cities': list(cities),
+        'cities_count': len(cities),
+    }
+    
+    return render(request, 'scraper/export_csv.html', context)
