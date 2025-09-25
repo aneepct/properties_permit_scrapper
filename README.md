@@ -1,22 +1,42 @@
-# 🏗️ **PERMIT SCRAPER - FINAL CLEAN VERSION**
+# 🏗️ **PERMIT SCRAPER - DJANGO WEB APPLICATION**
 
-## 📁 **ONLY 3 SCRIPTS REMAIN:**
+## 🌐 **DJANGO WEB APPLICATION WITH ADMIN PANEL**
 
-### 🎯 **1. `MAIN_permit_scraper.py` - THE MAIN SCRIPT** ⭐
+This permit scraper has been upgraded to a full Django web application with:
+- 🖥️ **Web Admin Panel** - Start scrapers with one click
+- 📊 **API Dashboard** - Monitor scraper runs and results  
+- 🗄️ **MySQL Database** - Store permits and run history
+- 🐳 **Docker Deployment** - Easy production setup
+- 🎨 **Modern UI** - Dark/light theme support
+
+## 🚀 **QUICK START:**
+
+### **Option 1: Docker Deployment (Recommended)**
+```bash
+# For Ubuntu Server
+./deploy-ubuntu.sh
+
+# For local development
+docker-compose up --build -d
+```
+
+### **Option 2: Traditional Python Scripts**
+
+#### 🎯 **1. `MAIN_permit_scraper.py` - THE MAIN SCRIPT** ⭐
 **This is your FINAL working script for daily use!**
 
 ```bash
 python MAIN_permit_scraper.py
 ```
 
-### 🎭 **2. `demo_scraper.py` - FOR TESTING ONLY**
+#### 🎭 **2. `demo_scraper.py` - FOR TESTING ONLY**
 **Use this to generate sample data for CRM testing**
 
 ```bash
 python demo_scraper.py
 ```
 
-### 🔧 **3. `setup.py` - ONE-TIME SETUP**
+#### 🔧 **3. `setup.py` - ONE-TIME SETUP**
 **Run this once to install dependencies**
 
 ```bash
@@ -25,7 +45,52 @@ python setup.py
 
 ---
 
-## 🚀 **HOW TO USE:**
+## 🌐 **WEB APPLICATION ACCESS:**
+
+### **After Docker Deployment:**
+- 🌐 **Web Application**: http://localhost:8800
+- 🛡️ **Admin Panel**: http://localhost:8800/admin
+- 📊 **API Dashboard**: http://localhost:8800/api/scraper/dashboard/
+
+### **Default Admin Credentials:**
+- **Username**: admin
+- **Password**: admin123
+
+---
+
+## � **DOCKER DEPLOYMENT:**
+
+### **Ubuntu Server Deployment:**
+```bash
+# Run the automated deployment script
+./deploy-ubuntu.sh
+
+# If you encounter permission issues
+./fix-volumes.sh
+
+# Check deployment status
+docker-compose -f docker-compose.ubuntu.yml ps
+docker-compose -f docker-compose.ubuntu.yml logs -f web
+```
+
+### **Local Development:**
+```bash
+# Start with Docker Compose
+docker-compose up --build -d
+
+# If you encounter permission issues
+./fix-volumes-local.sh
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+---
+
+## 🔧 **TRADITIONAL PYTHON USAGE:**
 
 ### **Step 1: Setup (Run Once)**
 ```bash

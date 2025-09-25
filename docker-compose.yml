@@ -3,6 +3,7 @@ version: '3.8'
 services:
   web:
     build: .
+    user: "root"
     network_mode: "host"
     environment:
       - DEBUG=False
@@ -16,9 +17,14 @@ services:
       - ./logs:/app/logs
       - ./output:/app/output
       - ./state:/app/state
-      - ./staticfiles:/app/staticfiles
-      - ./media:/app/media
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
+             python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.create_superuser('admin', 'admin@example.com', 'admin123') if not User.objects.filter(username='admin').exists() else print('Admin exists')\" &&
              gunicorn --bind 0.0.0.0:8800 --workers 3 --worker-class sync --timeout 120 --access-logfile - --error-logfile - permit_api.wsgi:application"
+
+volumes:
+  static_volume:
+  media_volume:
