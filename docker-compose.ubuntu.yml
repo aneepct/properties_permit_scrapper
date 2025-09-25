@@ -32,7 +32,7 @@ services:
       - DATABASE_PASSWORD=Devneep@27092023
       - DATABASE_HOST=db
       - DATABASE_PORT=3306
-      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,properties-scrapper.levenstein.net
     volumes:
       - ./logs:/app/logs
       - ./output:/app/output
