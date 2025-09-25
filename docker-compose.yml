@@ -4,7 +4,7 @@ services:
   web:
     build: .
     ports:
-      - "8000:8000"
+      - "8800:8800"
     environment:
       - DEBUG=False
       - DATABASE_NAME=properties_permit_scrapper
@@ -22,4 +22,4 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             gunicorn --bind 0.0.0.0:8000 --workers 3 --worker-class sync --timeout 120 --access-logfile - --error-logfile - permit_api.wsgi:application"
+             gunicorn --bind 0.0.0.0:8800 --workers 3 --worker-class sync --timeout 120 --access-logfile - --error-logfile - permit_api.wsgi:application"
