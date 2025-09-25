@@ -9,8 +9,8 @@ services:
       - DEBUG=False
       - DATABASE_NAME=properties_permit_scrapper
       - DATABASE_USER=root
-      - DATABASE_PASSWORD=Aneep@2709
-      - DATABASE_HOST=host.docker.internal
+      - DATABASE_PASSWORD=Devneep@27092023
+      - DATABASE_HOST=localhost
       - DATABASE_PORT=3306
       - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
     volumes:
