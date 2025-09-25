@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # MySQL Database Service
+  db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_DATABASE=properties_permit_scrapper
+      - MYSQL_ROOT_PASSWORD=Devneep@27092023
+      - MYSQL_USER=django
+      - MYSQL_PASSWORD=django123
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    restart: unless-stopped
+
+  # Django Web Application
+  web:
+    build: .
+    ports:
+      - "8800:8800"
+    environment:
+      - DEBUG=False
+      - DATABASE_NAME=properties_permit_scrapper
+      - DATABASE_USER=root
+      - DATABASE_PASSWORD=Devneep@27092023
+      - DATABASE_HOST=db
+      - DATABASE_PORT=3306
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+    volumes:
+      - ./logs:/app/logs
+      - ./output:/app/output
+      - ./state:/app/state
+      - ./staticfiles:/app/staticfiles
+      - ./media:/app/media
+    depends_on:
+      - db
+    command: >
+      sh -c "sleep 10 &&
+             python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.create_superuser('admin', 'admin@example.com', 'admin123') if not User.objects.filter(username='admin').exists() else print('Admin exists')\" &&
+             gunicorn --bind 0.0.0.0:8800 --workers 3 --worker-class sync --timeout 120 --access-logfile - --error-logfile - permit_api.wsgi:application"
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

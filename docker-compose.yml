@@ -3,14 +3,13 @@ version: '3.8'
 services:
   web:
     build: .
-    ports:
-      - "8800:8800"
+    network_mode: "host"
     environment:
       - DEBUG=False
       - DATABASE_NAME=properties_permit_scrapper
       - DATABASE_USER=root
       - DATABASE_PASSWORD=Devneep@27092023
-      - DATABASE_HOST=localhost
+      - DATABASE_HOST=127.0.0.1
       - DATABASE_PORT=3306
       - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
     volumes:
