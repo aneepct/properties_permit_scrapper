@@ -38,6 +38,7 @@ services:
       - ./logs:/app/logs
       - ./output:/app/output
       - ./state:/app/state
+      - ./temp:/app/temp
       - static_volume:/app/staticfiles
       - media_volume:/app/media
     depends_on:

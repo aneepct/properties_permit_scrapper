@@ -29,8 +29,8 @@ COPY . /app/
 # Create non-root user first
 RUN adduser --disabled-password --gecos '' appuser
 
-# Create directories for logs and static files with proper permissions
-RUN mkdir -p /app/logs /app/staticfiles /app/media \
+# Create directories for logs, static files, and temp with proper permissions
+RUN mkdir -p /app/logs /app/staticfiles /app/media /app/temp \
     && chown -R appuser:appuser /app
 
 # Switch to non-root user

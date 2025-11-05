@@ -18,6 +18,10 @@ logs/
 # output/
 # state/
 
+# Temporary upload files
+temp/
+media/
+
 # IDE
 .vscode/
 .idea/
