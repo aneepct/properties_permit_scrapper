@@ -1,0 +1,217 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block title %}Upload ZIP File for Processing{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='scraper' %}">Scraper</a>
+    &rsaquo; <a href="{% url 'admin:scraper_fileprocessor_changelist' %}">File processors</a>
+    &rsaquo; Upload ZIP File
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>Upload ZIP File for Processing</h1>
+
+<div class="module aligned">
+    <form method="post" enctype="multipart/form-data" id="upload-form">
+        {% csrf_token %}
+        
+        <div class="form-row">
+            <div>
+                <label for="id_zip_file" class="required">ZIP File:</label>
+                <input type="file" name="zip_file" id="id_zip_file" accept=".zip" required>
+                <p class="help">
+                    Select a ZIP file to process. Maximum size: 1.5GB<br>
+                    All files from nested folders will be extracted and combined into a single ZIP file.<br>
+                    <strong>The processed file will automatically download when ready, and all temporary files will be deleted.</strong>
+                </p>
+            </div>
+        </div>
+        
+        <div class="submit-row">
+            <input type="submit" value="Upload, Process & Download" class="default" id="upload-btn">
+            <a href="{% url 'admin:scraper_fileprocessor_changelist' %}" class="button cancel-link">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<div id="progress-info" style="display: none; margin-top: 20px;">
+    <div class="module">
+        <h2>Processing...</h2>
+        <p id="progress-message">Your file is being uploaded and processed. The download will start automatically when ready. This may take several minutes for large files.</p>
+        <div class="progress-bar">
+            <div class="progress-fill"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: #f0f0f0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #417690;
+    width: 0%;
+    border-radius: 10px;
+    animation: loading 3s infinite ease-in-out;
+}
+
+@keyframes loading {
+    0% { width: 0%; }
+    25% { width: 30%; }
+    50% { width: 60%; }
+    75% { width: 85%; }
+    100% { width: 95%; }
+}
+
+.help {
+    font-size: 11px;
+    color: #666;
+    margin-top: 5px;
+}
+
+.module {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+</style>
+
+<script>
+document.getElementById('upload-form').addEventListener('submit', function(e) {
+    // Show processing indicators
+    document.getElementById('upload-btn').disabled = true;
+    document.getElementById('upload-btn').value = 'Processing & Downloading...';
+    document.getElementById('progress-info').style.display = 'block';
+    
+    // Use XMLHttpRequest to handle the upload and detect completion
+    e.preventDefault();
+    
+    var formData = new FormData(this);
+    var xhr = new XMLHttpRequest();
+    
+    xhr.open('POST', this.action, true);
+    xhr.responseType = 'blob';
+    
+    // Add CSRF token
+    var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    xhr.setRequestHeader('X-CSRFToken', csrfToken);
+    
+    xhr.onloadstart = function() {
+        document.getElementById('upload-btn').value = 'Uploading...';
+        document.querySelector('#progress-message').innerHTML = 'Uploading file to server...';
+    };
+    
+    xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+            var percentComplete = (e.loaded / e.total) * 100;
+            document.getElementById('upload-btn').value = 'Uploading ' + Math.round(percentComplete) + '%';
+            if (percentComplete === 100) {
+                document.getElementById('upload-btn').value = 'Processing...';
+                document.querySelector('#progress-message').innerHTML = 'File uploaded. Extracting and combining files...';
+            }
+        }
+    });
+    
+    xhr.onload = function() {
+        if (xhr.status === 200 && xhr.response.type === 'application/zip') {
+            // Success - trigger download
+            document.getElementById('upload-btn').value = 'Download Starting...';
+            
+            // Get processor ID from response headers
+            var processorId = xhr.getResponseHeader('X-Processor-ID');
+            
+            var blob = new Blob([xhr.response], {type: 'application/zip'});
+            var url = window.URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'combined_files_' + Date.now() + '.zip';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            // Notify server to cleanup files after download
+            if (processorId) {
+                setTimeout(function() {
+                    var cleanupXhr = new XMLHttpRequest();
+                    cleanupXhr.open('POST', '/admin/scraper/fileprocessor/cleanup/' + processorId + '/', true);
+                    cleanupXhr.setRequestHeader('X-CSRFToken', csrfToken);
+                    cleanupXhr.setRequestHeader('Content-Type', 'application/json');
+                    cleanupXhr.send();
+                }, 2000); // Wait 2 seconds after download starts
+            }
+            
+            // Reset form after successful download
+            setTimeout(function() {
+                document.getElementById('upload-btn').disabled = false;
+                document.getElementById('upload-btn').value = 'Upload, Process & Download';
+                document.getElementById('progress-info').style.display = 'none';
+                document.getElementById('zip_file').value = '';
+                
+                // Show success message
+                var successMsg = document.createElement('div');
+                successMsg.style.cssText = 'background:#d4edda;color:#155724;padding:10px;border:1px solid #c3e6cb;border-radius:4px;margin:10px 0;';
+                successMsg.innerHTML = '✅ File processed and downloaded successfully! All files have been cleaned up.';
+                document.querySelector('.module').insertBefore(successMsg, document.querySelector('.form-row'));
+                
+                // Remove success message after 5 seconds
+                setTimeout(function() {
+                    if (successMsg.parentNode) {
+                        successMsg.parentNode.removeChild(successMsg);
+                    }
+                }, 5000);
+            }, 1000);
+            
+        } else {
+            // Handle error response
+            document.getElementById('upload-btn').disabled = false;
+            document.getElementById('upload-btn').value = 'Upload, Process & Download';
+            document.getElementById('progress-info').style.display = 'none';
+            
+            var errorMsg = document.createElement('div');
+            errorMsg.style.cssText = 'background:#f8d7da;color:#721c24;padding:10px;border:1px solid #f5c6cb;border-radius:4px;margin:10px 0;';
+            errorMsg.innerHTML = '❌ Processing failed. Please try again.';
+            document.querySelector('.module').insertBefore(errorMsg, document.querySelector('.form-row'));
+            
+            setTimeout(function() {
+                if (errorMsg.parentNode) {
+                    errorMsg.parentNode.removeChild(errorMsg);
+                }
+            }, 5000);
+        }
+    };
+    
+    xhr.onerror = function() {
+        document.getElementById('upload-btn').disabled = false;
+        document.getElementById('upload-btn').value = 'Upload, Process & Download';
+        document.getElementById('progress-info').style.display = 'none';
+        
+        var errorMsg = document.createElement('div');
+        errorMsg.style.cssText = 'background:#f8d7da;color:#721c24;padding:10px;border:1px solid #f5c6cb;border-radius:4px;margin:10px 0;';
+        errorMsg.innerHTML = '❌ Upload failed. Please check your connection and try again.';
+        document.querySelector('.module').insertBefore(errorMsg, document.querySelector('.form-row'));
+        
+        setTimeout(function() {
+            if (errorMsg.parentNode) {
+                errorMsg.parentNode.removeChild(errorMsg);
+            }
+        }, 5000);
+    };
+    
+    xhr.send(formData);
+});
+</script>
+
+{% endblock %}

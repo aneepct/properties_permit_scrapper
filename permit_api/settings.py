@@ -91,7 +91,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('DATABASE_NAME', 'properties_permit_scrapper'),
         'USER': os.getenv('DATABASE_USER', 'root'),
-        'PASSWORD': os.getenv('DATABASE_PASSWORD', 'Aneep@2709'),
+        'PASSWORD': os.getenv('DATABASE_PASSWORD', 'Devneep@2709'),
         'HOST': os.getenv('DATABASE_HOST', '127.0.0.1'),
         'PORT': os.getenv('DATABASE_PORT', '3306'),
         'OPTIONS': {
@@ -141,6 +141,12 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# File upload settings - Support large files up to 1.5GB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 100  # 100MB in memory
+DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 1024 * 2  # 2GB
+FILE_UPLOAD_TEMP_DIR = os.path.join(BASE_DIR, 'temp')
+DATA_UPLOAD_MAX_NUMBER_FIELDS = None  # No limit on fields
 
 # Additional locations of static files
 STATICFILES_DIRS = [

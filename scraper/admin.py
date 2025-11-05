@@ -3,10 +3,333 @@ from django.utils.html import format_html
 from django.urls import path
 from django.http import HttpResponseRedirect, HttpResponse
 from django.contrib import messages
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 import csv
+import os
+import zipfile
+import tempfile
+import time
 from datetime import datetime
-from .models import Permit, ScraperRun
+from django.utils import timezone
+from .models import Permit, ScraperRun, FileProcessor
+
+
+@admin.register(FileProcessor)
+class FileProcessorAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'upload_file', 'status', 'files_count', 
+        'uploaded_at', 'processed_at'
+    ]
+    list_filter = ['status', 'uploaded_at']
+    readonly_fields = [
+        'upload_file', 'uploaded_at', 'processed_at', 'files_count', 
+        'output_file', 'error_message', 'status'
+    ]
+    
+    def has_add_permission(self, request):
+        """Remove the 'Add' button from admin"""
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        """Make records read-only"""
+        return True
+    
+    def has_delete_permission(self, request, obj=None):
+        """Allow deletion for cleanup"""
+        return True
+    
+    fieldsets = (
+        ('File Upload', {
+            'fields': ('upload_file', 'status')
+        }),
+        ('Processing Results', {
+            'fields': (
+                'files_count', 'output_file', 'processed_at', 'error_message'
+            )
+        }),
+        ('Timestamps', {
+            'fields': ('uploaded_at',)
+        }),
+    )
+    
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('process-zip/', self.admin_site.admin_view(self.process_zip_view), name='process_zip'),
+            path('<int:object_id>/process/', self.admin_site.admin_view(self.process_single_file), name='process_single_file'),
+            path('cleanup/<int:processor_id>/', self.admin_site.admin_view(self.cleanup_files_view), name='cleanup_files'),
+        ]
+        return custom_urls + urls
+    
+    def process_zip_view(self, request):
+        """Handle ZIP processing from the admin"""
+        if request.method == 'POST' and request.FILES.get('zip_file'):
+            try:
+                # Create FileProcessor instance
+                processor = FileProcessor.objects.create(
+                    upload_file=request.FILES['zip_file'],
+                    status='processing'
+                )
+                
+                # Process the file
+                output_path = self._process_zip_file(processor)
+                
+                if processor.status == 'completed' and output_path:
+                    # Auto-download the processed file
+                    response = self._serve_and_cleanup_file(processor, output_path)
+                    return response
+                else:
+                    messages.error(request, f'Processing failed: {processor.error_message}')
+                    return HttpResponseRedirect('../')
+                
+            except Exception as e:
+                messages.error(request, f'Error processing ZIP file: {str(e)}')
+                return HttpResponseRedirect('../')
+        
+        # Show upload form
+        return render(request, 'admin/scraper/fileprocessor/upload_zip.html')
+    
+    def process_single_file(self, request, object_id):
+        """Process a single uploaded file"""
+        try:
+            processor = FileProcessor.objects.get(id=object_id)
+            if processor.status != 'uploaded':
+                messages.warning(request, 'File has already been processed or is currently processing.')
+                return HttpResponseRedirect('../')
+            
+            processor.status = 'processing'
+            processor.save()
+            
+            self._process_zip_file(processor)
+            
+            messages.success(
+                request, 
+                f'File processed successfully! {processor.files_count} files found.'
+            )
+            
+        except FileProcessor.DoesNotExist:
+            messages.error(request, 'File not found.')
+        except Exception as e:
+            messages.error(request, f'Error processing file: {str(e)}')
+            
+        return HttpResponseRedirect('../')
+    
+    def cleanup_files_view(self, request, processor_id):
+        """Handle cleanup request from client after download completes"""
+        from django.http import JsonResponse
+        
+        try:
+            # Get processor and output path from headers or session
+            processor = FileProcessor.objects.get(id=processor_id)
+            
+            # Get output path from the processor record
+            from django.conf import settings
+            output_path = os.path.join(settings.MEDIA_ROOT, 'processed', processor.output_file)
+            
+            # Perform cleanup
+            self._cleanup_files(processor, output_path)
+            
+            return JsonResponse({'status': 'success', 'message': 'Files cleaned up successfully'})
+            
+        except FileProcessor.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Processor not found'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+    
+    def _serve_and_cleanup_file(self, processor, output_path):
+        """Serve the file for download and cleanup all related files"""
+        import mimetypes
+        import threading
+        
+        try:
+            # Determine the content type
+            content_type, _ = mimetypes.guess_type(output_path)
+            if not content_type:
+                content_type = 'application/zip'
+            
+            # Read the file content into memory
+            with open(output_path, 'rb') as f:
+                file_content = f.read()
+            
+            # Create download response
+            response = HttpResponse(file_content, content_type=content_type)
+            response['Content-Disposition'] = f'attachment; filename="{processor.output_file}"'
+            response['Content-Length'] = len(file_content)
+            
+            # Set custom headers for client-side cleanup notification
+            response['X-Cleanup-Required'] = 'true'
+            response['X-Processor-ID'] = str(processor.id)
+            response['X-Output-Path'] = output_path
+            
+            # Schedule a fallback cleanup in case client doesn't notify us
+            # This ensures files are cleaned up even if the client-side cleanup fails
+            def fallback_cleanup():
+                import time
+                time.sleep(30)  # Wait 30 seconds as fallback
+                try:
+                    # Check if processor still exists (means client cleanup didn't work)
+                    test_processor = FileProcessor.objects.get(id=processor.id)
+                    self._cleanup_files(test_processor, output_path)
+                except FileProcessor.DoesNotExist:
+                    # Already cleaned up by client notification - good!
+                    pass
+                except Exception as e:
+                    print(f"Fallback cleanup error: {str(e)}")
+            
+            cleanup_thread = threading.Thread(target=fallback_cleanup)
+            cleanup_thread.daemon = True
+            cleanup_thread.start()
+            
+            return response
+            
+        except Exception as e:
+            # Cleanup immediately on error
+            self._cleanup_files(processor, output_path)
+            raise e
+    
+    def _cleanup_files(self, processor, output_path):
+        """Clean up all files related to this processing"""
+        import os
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        files_deleted = []
+        errors = []
+        
+        try:
+            # Delete the processed output file
+            if output_path and os.path.exists(output_path):
+                try:
+                    os.remove(output_path)
+                    files_deleted.append(f"Processed file: {output_path}")
+                    logger.info(f"Deleted processed file: {output_path}")
+                except Exception as e:
+                    errors.append(f"Failed to delete processed file {output_path}: {str(e)}")
+            
+            # Delete the uploaded file
+            if processor.upload_file:
+                upload_path = processor.upload_file.path
+                if os.path.exists(upload_path):
+                    try:
+                        os.remove(upload_path)
+                        files_deleted.append(f"Uploaded file: {upload_path}")
+                        logger.info(f"Deleted uploaded file: {upload_path}")
+                    except Exception as e:
+                        errors.append(f"Failed to delete uploaded file {upload_path}: {str(e)}")
+            
+            # Clean up any remaining temporary directories
+            temp_base = os.path.join(os.path.dirname(output_path or ''), '..', '..', 'temp')
+            if os.path.exists(temp_base):
+                for item in os.listdir(temp_base):
+                    if item.startswith(f'process_{processor.id}_'):
+                        temp_path = os.path.join(temp_base, item)
+                        try:
+                            import shutil
+                            if os.path.isdir(temp_path):
+                                shutil.rmtree(temp_path)
+                                files_deleted.append(f"Temp directory: {temp_path}")
+                                logger.info(f"Deleted temp directory: {temp_path}")
+                        except Exception as e:
+                            errors.append(f"Failed to delete temp directory {temp_path}: {str(e)}")
+            
+            # Delete the database record last
+            try:
+                processor_id = processor.id
+                processor.delete()
+                logger.info(f"Deleted database record for processor ID: {processor_id}")
+            except Exception as e:
+                errors.append(f"Failed to delete database record: {str(e)}")
+            
+            # Log summary
+            if files_deleted:
+                logger.info(f"Cleanup completed. Deleted: {', '.join(files_deleted)}")
+            if errors:
+                logger.error(f"Cleanup errors: {', '.join(errors)}")
+                
+        except Exception as e:
+            logger.error(f"Cleanup failed with unexpected error: {str(e)}")
+            print(f"Cleanup error: {str(e)}")
+    
+    def _process_zip_file(self, processor):
+        """Extract ZIP file and combine all files into a new ZIP"""
+        from django.conf import settings
+        import shutil
+        
+        output_path = None
+        try:
+            # Ensure directories exist
+            temp_dir = os.path.join(settings.BASE_DIR, 'temp')
+            processed_dir = os.path.join(settings.MEDIA_ROOT, 'processed')
+            os.makedirs(temp_dir, exist_ok=True)
+            os.makedirs(processed_dir, exist_ok=True)
+            
+            # Create unique working directory
+            work_dir = os.path.join(temp_dir, f'process_{processor.id}_{int(time.time())}')
+            os.makedirs(work_dir, exist_ok=True)
+            
+            # Extract the uploaded ZIP file
+            extract_dir = os.path.join(work_dir, 'extracted')
+            with zipfile.ZipFile(processor.upload_file.path, 'r') as zip_ref:
+                zip_ref.extractall(extract_dir)
+            
+            # Collect all files recursively
+            all_files = []
+            for root, dirs, files in os.walk(extract_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    # Skip hidden files and directories
+                    if not file.startswith('.') and os.path.isfile(file_path):
+                        all_files.append(file_path)
+            
+            # Create output ZIP with timestamp
+            timestamp = int(time.time())
+            output_filename = f'combined_files_{timestamp}.zip'
+            output_path = os.path.join(processed_dir, output_filename)
+            
+            with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as output_zip:
+                for file_path in all_files:
+                    # Get relative path from extracted directory
+                    rel_path = os.path.relpath(file_path, extract_dir)
+                    # Add file to ZIP with flattened structure
+                    filename = os.path.basename(file_path)
+                    # Handle duplicate filenames by adding directory info
+                    if rel_path != filename:
+                        dir_name = os.path.dirname(rel_path).replace(os.sep, '_')
+                        if dir_name:
+                            filename = f"{dir_name}_{filename}"
+                    
+                    output_zip.write(file_path, filename)
+            
+            # Update processor record
+            processor.status = 'completed'
+            processor.processed_at = timezone.now()
+            processor.files_count = len(all_files)
+            processor.output_file = output_filename
+            processor.save()
+            
+            # Clean up temporary directory
+            shutil.rmtree(work_dir)
+            
+            return output_path
+            
+        except Exception as e:
+            processor.status = 'failed'
+            processor.error_message = str(e)
+            processor.save()
+            
+            # Clean up on error
+            if 'work_dir' in locals() and os.path.exists(work_dir):
+                shutil.rmtree(work_dir)
+            
+            raise e
+        
+        return None
+    
+    def changelist_view(self, request, extra_context=None):
+        """Add custom context for the changelist"""
+        extra_context = extra_context or {}
+        extra_context['show_upload_button'] = True
+        return super().changelist_view(request, extra_context)
 
 
 @admin.register(Permit)
