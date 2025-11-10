@@ -63,27 +63,70 @@ class FileProcessorAdmin(admin.ModelAdmin):
     
     def process_zip_view(self, request):
         """Handle ZIP processing from the admin"""
+        import logging
+        logger = logging.getLogger('scraper')
+        
         if request.method == 'POST' and request.FILES.get('zip_file'):
+            processor = None
             try:
-                # Create FileProcessor instance
-                processor = FileProcessor.objects.create(
-                    upload_file=request.FILES['zip_file'],
-                    status='processing'
-                )
+                zip_file = request.FILES['zip_file']
+                logger.info(f"Starting ZIP processing: {zip_file.name}, size: {zip_file.size} bytes")
                 
-                # Process the file
-                output_path = self._process_zip_file(processor)
-                
-                if processor.status == 'completed' and output_path:
-                    # Auto-download the processed file
-                    response = self._serve_and_cleanup_file(processor, output_path)
-                    return response
-                else:
-                    messages.error(request, f'Processing failed: {processor.error_message}')
+                # Validate file size (1.5GB limit)
+                max_size = 1610612736  # 1.5GB in bytes
+                if zip_file.size > max_size:
+                    error_msg = f'File too large: {zip_file.size} bytes (max: {max_size} bytes)'
+                    logger.error(error_msg)
+                    messages.error(request, error_msg)
                     return HttpResponseRedirect('../')
                 
+                # Create FileProcessor instance
+                processor = FileProcessor.objects.create(
+                    upload_file=zip_file,
+                    status='processing'
+                )
+                logger.info(f"Created FileProcessor ID: {processor.id}")
+                
+                # Process the file with enhanced error handling
+                try:
+                    output_path = self._process_zip_file(processor)
+                    logger.info(f"Processing completed for ID: {processor.id}, output: {output_path}")
+                    
+                    if processor.status == 'completed' and output_path:
+                        # Auto-download the processed file
+                        response = self._serve_and_cleanup_file(processor, output_path)
+                        logger.info(f"File served for download: {processor.id}")
+                        return response
+                    else:
+                        error_msg = f'Processing failed: {processor.error_message or "Unknown error"}'
+                        logger.error(f"Processing failed for ID {processor.id}: {processor.error_message}")
+                        messages.error(request, error_msg)
+                        # Clean up failed processor
+                        if processor:
+                            try:
+                                processor.delete()
+                            except:
+                                pass
+                        return HttpResponseRedirect('../')
+                        
+                except Exception as process_error:
+                    logger.error(f"Processing error for ID {processor.id}: {str(process_error)}", exc_info=True)
+                    if processor:
+                        processor.status = 'failed'
+                        processor.error_message = str(process_error)
+                        processor.save()
+                    raise process_error
+                
             except Exception as e:
-                messages.error(request, f'Error processing ZIP file: {str(e)}')
+                error_msg = f'Error processing ZIP file: {str(e)}'
+                logger.error(error_msg, exc_info=True)
+                messages.error(request, error_msg)
+                # Clean up failed processor
+                if processor:
+                    try:
+                        processor.delete()
+                    except:
+                        pass
                 return HttpResponseRedirect('../')
         
         # Show upload form

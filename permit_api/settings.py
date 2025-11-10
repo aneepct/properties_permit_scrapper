@@ -148,6 +148,23 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 1024 * 2  # 2GB
 FILE_UPLOAD_TEMP_DIR = os.path.join(BASE_DIR, 'temp')
 DATA_UPLOAD_MAX_NUMBER_FIELDS = None  # No limit on fields
 
+# Session settings for large uploads
+SESSION_COOKIE_AGE = 3600 * 6  # 6 hours for long upload sessions
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = True
+
+# Cache settings for better performance
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+        'TIMEOUT': 300,
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,
+        }
+    }
+}
+
 # Additional locations of static files
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'scraper', 'static'),
@@ -185,3 +202,64 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000 if os.getenv('USE_HTTPS', 'False') == 'True' else 0
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+
+# Enhanced logging for production debugging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
+            'maxBytes': 1024*1024*15,  # 15MB
+            'backupCount': 10,
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'upload_file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'uploads.log'),
+            'maxBytes': 1024*1024*50,  # 50MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'scraper': {
+            'handlers': ['upload_file', 'console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'gunicorn.error': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'gunicorn.access': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}

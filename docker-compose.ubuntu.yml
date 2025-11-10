@@ -25,6 +25,12 @@ services:
     user: "root"
     ports:
       - "8800:8800"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
     environment:
       - DEBUG=False
       - DATABASE_NAME=properties_permit_scrapper
@@ -44,11 +50,12 @@ services:
     depends_on:
       - db
     command: >
+      command: >
       sh -c "sleep 10 &&
              python manage.py migrate &&
              python manage.py collectstatic --noinput &&
              python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.create_superuser('admin', 'admin@example.com', 'admin123') if not User.objects.filter(username='admin').exists() else print('Admin exists')\" &&
-             gunicorn --bind 0.0.0.0:8800 --workers 3 --worker-class sync --timeout 120 --access-logfile - --error-logfile - permit_api.wsgi:application"
+             gunicorn --bind 0.0.0.0:8800 --workers 1 --worker-class sync --timeout 3600 --graceful-timeout 3600 --keep-alive 5 --max-requests 50 --max-requests-jitter 5 --worker-tmp-dir /dev/shm --limit-request-line 8192 --limit-request-fields 1000 --limit-request-field_size 16384 --access-logfile - --error-logfile - --log-level info permit_api.wsgi:application"
     restart: unless-stopped
 
 volumes:
